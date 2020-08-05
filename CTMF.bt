@@ -1,0 +1,35 @@
+//------------------------------------------------
+//--- 010 Editor v10.0.2 Binary Template
+//
+//      File: 
+//   Authors: 
+//   Version: 
+//   Purpose: 
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+typedef struct {
+byte bla[6];
+	uint16 iInstrumentBlockOffset;
+	uint16 iMusicOffset;
+	uint16 iTicksPerQuarterNote;
+	uint16 iTicksPerSecond;
+	uint16 iTagOffsetTitle;
+	uint16 iTagOffsetComposer;
+	uint16 iTagOffsetRemarks;
+	byte iChannelsInUse[16];
+	uint16 iNumInstruments;
+	uint16 iTempo;
+} CMFHEADER;
+
+typedef struct {
+    byte  iCharMult;
+    byte  iScalingOutput;
+    byte  iAttackDecay;
+	byte  iSustainRelease;
+    byte  iWaveSel;
+} OPERATOR;
+CMFHEADER header;

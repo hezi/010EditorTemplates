@@ -1,0 +1,172 @@
+//------------------------------------------------
+//--- 010 Editor v10.0.2 Binary Template
+//
+//   Authors: Jorge Cohen <me@jorgecohen.codes>
+//
+//------------------------------------------------
+
+typedef struct
+{
+    WORD   MZSignature              <comment="IMAGE_DOS_SIGNATURE = 0x5A4D",format=hex>;
+    WORD   UsedBytesInTheLastPage   <comment="Bytes on last page of file">;
+    WORD   FileSizeInPages          <comment="Pages in file">;
+    WORD   NumberOfRelocationItems  <comment="Relocations">;
+    WORD   HeaderSizeInParagraphs   <comment="Size of header in paragraphs">;
+    WORD   MinimumExtraParagraphs   <comment="Minimum extra paragraphs needed">;
+    WORD   MaximumExtraParagraphs   <comment="Maximum extra paragraphs needed">;
+    WORD   InitialRelativeSS        <comment="Initial (relative) SS value">;
+    WORD   InitialSP                <comment="Initial SP value">;
+    WORD   Checksum                 <comment="Checksum">;
+    WORD   InitialIP                <comment="Initial IP value">;
+    WORD   InitialRelativeCS        <comment="Initial (relative) CS value">;
+    WORD   AddressOfRelocationTable <comment="File address of relocation table">;
+    WORD   OverlayNumber            <comment="Overlay number">;
+    WORD   Reserved[4]              <comment="Reserved words">;
+    WORD   OEMid                    <comment="OEM identifier (for OEMinfo)">;
+    WORD   OEMinfo                  <comment="OEM information; OEMid specific">;
+    WORD   Reserved2[10]            <comment="Reserved words">;
+    LONG   AddressOfNewExeHeader    <comment="NtHeader Offset",format=hex>;
+} IMAGE_DOS_HEADER;
+
+typedef struct
+{
+ WORD	magic_number <comment="DEBUG_INFO__SIGNATURE = 0x52FB", format=hex>;
+ WORD	version_id <comment="Version ID">;
+ DWORD	names <comment="Size of name pool in bytes">;
+ WORD	names_count <comment="Number of names in name pool">;
+ WORD	types_count <comment="Number of type entries">;
+ WORD	members_count <comment="number of structure members">;
+ WORD	symbols_count <comment="number of symbols">;
+ WORD	globals_count <comment="number of global symbols">;
+ WORD	modules_count <comment="number of modules">;
+ WORD	locals_count <comment="number of locals (optional)">;
+ WORD	scopes_count <comment="number of scopes in table">;
+ WORD	lines_count <comment="number of line-number entries">;
+ WORD	source_count <comment="number of include files">;
+ WORD	segment_counts <comment="number of segment records">;
+ WORD	correlation_count <comment="number of segment/file correlations">;
+ DWORD	image_size <comment="size of load image after removing uninitialized data and debug information">;
+ DWORD	debugger_hook <comment="debugger hook; pointer into debugged program whose meaning depends on program flags">;
+ BYTE	program_flags <comment="program flags", format=binary>;
+// bit 0: case-sensitive link
+// bit 1: pascal overlay program
+ WORD	stringsegoffset <comment="no longer used">;
+ WORD	data_count <comment="size of data pool in bytes">;
+ BYTE	filler1 <comment="padding">;
+ WORD	extension_size <comment="size of following header extension (currently 00h, 10h, or 20h)">;
+
+ if (extension_size > 0) 
+ {
+    WORD	class_entries <comment="number of classes">;
+    WORD	parent_entries <comment="number of parents">;
+    WORD	global_classes <comment="number of global classes (currently unused)">;
+    WORD	NumberOfOverloads <comment="number of overloads (currently unused)">;
+    WORD	scope_class_entries <comment="number of scope classes">;
+    WORD	module_class_entries <comment="number of module classes">;
+    WORD	CoverageOffsetCount <comment="number of coverage offsets">;
+    DWORD	NamePoolOffset<comment="offset relative to symbol base of name pool">;
+    WORD	BrowserEntries <comment="number of browser information records">;
+    WORD	OptSymEntries <comment="number of optimized symbol records">;
+    WORD	DebugFlags <comment="debugging flags", format=binary>;
+    DWORD  refInfoSize <comment="size in bytes of ref">;
+    BYTE   filler2[14];
+ }
+
+// 8 BYTEs	padding
+} DEBUG_INFO_HEADER;
+
+typedef struct
+{
+    unsigned short   symbol_name <read=readName>;
+    unsigned short   symbol_type;
+    unsigned short  symbol_offset <format=hex>;
+    unsigned short  symbol_segment <format=hex>;
+    unsigned byte  symbol_class : 3;
+    unsigned byte  has_valid_BP : 1;
+    unsigned byte  return_address_word_offset : 3;
+} SYMBOL_RECORD <read=readSymbol>;
+
+typedef struct{    unsigned short   module_name <read=readName>;    unsigned char   language;    unsigned byte  memory_model : 3;    unsigned byte  underbars_on : 1;    unsigned short   symbols_index;    unsigned short  symbols_count;    unsigned short  source_files_index;    unsigned short  source_files_count;    unsigned short  correlation_index;    unsigned short  correlation_count;} MODULE_HEADER <read=readModule>;
+
+typedef struct{	ushort fb <format=hex>;	ushort ov <format=hex>;	uint32 ovrsize;	uint32 exeinfo <format=hex>;	int32 segnum;} FBOV;
+
+typedef struct{	ushort seg <format=hex>;	ushort maxoff <format=hex>;	ushort flags <format=binary>;	ushort minoff <format=hex>;} SEGINFO;
+
+short PeekShort() {
+    local uint64 pos = FTell();    
+    local short v = ReadShort();
+    FSeek(pos);
+    return v;
+}
+
+int PeekInt() {
+    local uint64 pos = FTell();    
+    local int v = ReadInt();
+    FSeek(pos);
+    return v;
+}
+
+LittleEndian();
+Printf("EXE.bt Begin\n");
+
+IMAGE_DOS_HEADER DosHeader <bgcolor=cLtPurple>;
+if (DosHeader.MZSignature != 0x5A4D)
+{
+    Printf("Invalid DOS Magic.\n");
+    return 1;
+}
+
+local DWORD extra_data_start = DosHeader.FileSizeInPages * 512;
+if (DosHeader.UsedBytesInTheLastPage) {
+  extra_data_start -= (512 - DosHeader.UsedBytesInTheLastPage);  
+}
+
+if (extra_data_start >= FileSize()) {
+    Printf("No extra data.\n");
+    return 1;
+}
+
+FSeek(extra_data_start);
+
+if(PeekShort() == 0x52FB) {
+    DEBUG_INFO_HEADER DebugHeader <bgcolor=cLtRed>;
+    SYMBOL_RECORD SymbolRecord[DebugHeader.symbols_count] <bgcolor=cLtYellow>;
+    MODULE_HEADER Module[DebugHeader.modules_count] <bgcolor=cLtGreen>;
+} else if (PeekInt() == 0x564F4246) {
+    FBOV fbov;
+    FSeek(fbov.exeinfo);
+    SEGINFO segs[fbov.segnum];
+} else {
+    Printf("Unknown extra data.\n");
+    return 1;
+}
+
+//if (DebugHeader.magic_number != 0x52FB) {
+//    Printf("Invalid Debug Info Signature.\n");    
+//    return 1;
+//}
+
+
+string readName(unsigned short nameIndex) {
+    int originalLocation = FTell();
+    FSeek(FileSize() - DebugHeader.names);
+    local int i = 0;
+    string name;    
+    int currLocation = FTell();
+    while(i < nameIndex) {            
+        name = ReadString(currLocation);        
+        FSeek(currLocation + ReadStringLength(currLocation));
+        currLocation = FTell();
+        i++;
+    }
+    FSeek(originalLocation);
+    return name;
+}
+
+string readSymbol(SYMBOL_RECORD &sym) {
+    return readName(sym.symbol_name);
+}
+
+string readModule(MODULE_HEADER &module) {
+    return readName(module.module_name);
+}

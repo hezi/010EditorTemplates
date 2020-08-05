@@ -1,0 +1,80 @@
+//------------------------------------------------
+//--- 010 Editor v10.0.2 Binary Template
+//
+//      File: 
+//   Authors: 
+//   Version: 
+//   Purpose: 
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+typedef struct(int size) {
+    local int size = size;    
+    char heb[size];
+} HEBSTRING;
+
+wstring ReadHEBSTRING_Rot(HEBSTRING &heb)
+{
+    wchar_t result[heb.size];
+    char letter;
+    char diff;
+    int i = 0;
+    while(i < heb.size) {
+        letter = heb.heb[i];
+        diff = letter - 0x80;
+        result[heb.size-1-i] = 0x05D0 + diff;
+
+        i++;
+    }
+    
+    return result;
+}
+
+wstring ReadHEBSTRING(HEBSTRING &heb)
+{
+    wchar_t result[heb.size];
+    char letter;
+    char diff;
+    int i = 0;
+    while(i < heb.size) {
+        letter = heb.heb[i];
+        if(letter == 0x00) {
+            result[i] = '_';
+        } else if(letter == 0x30) {
+            result[i] = '0';
+        } else if (letter == 0x20) {
+            result[i] = 'x';
+        } else {            
+            diff = letter - 0x80;
+            result[i] = 0x05D0 + diff;
+        }
+        i++;
+    }
+        
+    return result;
+}
+
+
+typedef struct {
+    WORD row[12] <format=hex>;
+} BONUS_BOARDROW;
+
+typedef struct {
+    char row[12];
+} BONUS_BOARDTEXTROW;
+
+typedef struct {
+    FSeek(96);
+    HEBSTRING p2_name(8) <read=ReadHEBSTRING_Rot>;
+    FSeek(122);
+    HEBSTRING p1_name(8) <read=ReadHEBSTRING_Rot>;
+    FSeek(148);
+    BONUS_BOARDROW board[12];
+    BONUS_BOARDROW board_again_why[12];
+    FSeek(941);
+    HEBSTRING board_letters(13)[12] <read=ReadHEBSTRING>;
+} BONUS_SAVEFILE;
+
+BONUS_SAVEFILE saveFile;

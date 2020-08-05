@@ -1,0 +1,49 @@
+//------------------------------------------------
+//--- 010 Editor v10.0.2 Binary Template
+//
+//      File: 
+//   Authors: Jorge Cohen
+//   Version: 1.0
+//   Purpose: 
+//  Category: 
+// File Mask: *.mzp
+//  ID Bytes: 4D 4D // MM
+//   History: 
+//------------------------------------------------
+
+typedef struct {
+    unsigned byte name_len <format=decimal>;
+    char file_name[12];
+    int expanded_size; 
+    int data_len;
+    int data_offset <format=hex>;
+} MZP_ENTRY <read=ReadMZPENTRY>;
+
+typedef struct {
+    char magic_number[2];
+    unsigned short file_num <format=decimal>;
+    MZP_ENTRY mzp[file_num];
+} MZP_HEADER;
+
+typedef struct (int size) {
+    ubyte array[size];
+} Bytes;
+
+string ReadMZPENTRY(MZP_ENTRY &entry)
+{
+    if(exists(entry.file_name))
+        return entry.file_name;
+    else
+        return "";
+}
+
+SetBackColor( cLtGreen );
+MZP_HEADER header;
+SetBackColor( cNone );
+
+local int i = 0;
+while(i < header.file_num) {
+    FSeek(header.mzp[i].data_offset);
+    Bytes data(header.mzp[i].data_len);
+    i++;
+}

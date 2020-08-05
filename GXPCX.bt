@@ -1,0 +1,35 @@
+//------------------------------------------------
+//--- 010 Editor v10.0.2 Binary Template
+//
+//      File: 
+//   Authors: Jorge Cohen
+//   Version: 1.0
+//   Purpose: 
+//  Category: 
+// File Mask: *.gxl
+//  ID Bytes: 01 CA 
+//   History: 
+//------------------------------------------------
+/* PCX Library format description taken from PCXLIB.H *//* Image Library Header */typedef struct {  char  id[10];        /* Library ID string           */  char  copyright[50]; /* Copyright notice            */  unsigned short  version;       /* pcxLib version              */  char  label[40];     /* Library volume label        */  char  xtra[20];      /* filler                      */} PCXLIBHEADER;/* Image Library Image Header */typedef struct {  char  synch;         /* Synch byte (always 1)       */  char  filename[13];  /* Image file name             */  unsigned int    filesize;      /* File size                   */  unsigned short  date;          /* File date                   */  unsigned short  time;          /* File time                   */  unsigned short  pack;          /* Packing type                */  char  note[40];      /* Image note                  */  char  xtra[20];      /* Extra filler                */} PCXLIBDIR;/* GX Library format description taken from GXLIB.H   *//* Library Header */typedef struct {  unsigned short  id;            /* Library header id (=0CA01H) */  char  copyright[50]; /* Copyright notice            */  unsigned short  version;       /* gxLib version               */  char  label[40];     /* Library volume label        */  unsigned short  entries;       /* Total image entries         */  char  reserved[32];  /* Reserved for GX kernel      */} GXLIBHEADER;/* Library File Information */typedef struct {  char  pack;          /* Packing type                */  char  filename[13];  /* Image file name             */  unsigned int    fileoffs;      /* File offset (absolute)      */  unsigned int    filesize;      /* File size                   */  unsigned short  date;          /* File date                   */  unsigned short  time;          /* File time                   */} GXFINFO <read=ReadGXFINFO>;
+
+typedef struct (int size) {
+    ubyte array[size];
+} Bytes;
+
+string ReadGXFINFO(GXFINFO &entry)
+{
+    if(exists(entry.filename))
+        return entry.filename;
+    else
+        return "";
+}
+
+GXLIBHEADER header;
+GXFINFO files[header.entries];
+
+local int i = 0;
+while(i < header.entries) {
+    FSeek(files[i].fileoffs);
+    Bytes data(files[i].filesize);
+    i++;
+}

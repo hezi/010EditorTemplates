@@ -1,0 +1,52 @@
+//------------------------------------------------
+//--- 010 Editor v10.0.2 Binary Template
+//
+//      File: 
+//   Authors: 
+//   Version: 
+//   Purpose: 
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+typedef struct(int size) {
+    local int size = size;    
+    char heb[size];
+} HEBSTRING;
+
+wstring ReadHEBSTRING(HEBSTRING &heb)
+{
+    wchar_t result[heb.size];
+    unsigned char letter;
+    wchar_t final_char;
+    char diff;
+    int i = 0;
+    while(i < heb.size) {
+        letter = heb.heb[i];
+        
+        if (letter == 0x20) {
+            final_char = ' ';
+        } else if (letter == 0x0) {
+            final_char = 0;
+        } else if(letter >= 0x80) { 
+            diff = letter - 0x80;
+            final_char = 0x05D0 + diff;
+        } else {
+            final_char = letter;
+        }
+        
+        result[i] = final_char;
+
+        i++;
+    }
+        
+    return result;
+}
+
+typedef struct {
+    HEBSTRING name(15) <read=ReadHEBSTRING>;
+    short score;
+} RECORD;
+
+RECORD record[10];
