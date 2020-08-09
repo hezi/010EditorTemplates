@@ -90,7 +90,19 @@ typedef struct{    unsigned short   module_name <read=readName>;    unsigned 
 
 typedef struct{	ushort fb <format=hex>;	ushort ov <format=hex>;	uint32 ovrsize;	uint32 exeinfo <format=hex>;	int32 segnum;} FBOV;
 
-typedef struct{	ushort seg <format=hex>;	ushort maxoff <format=hex>;	ushort flags <format=binary>;	ushort minoff <format=hex>;} SEGINFO;
+typedef struct{	ushort seg <format=hex>;	ushort maxoff <format=hex>;	ushort flags <format=binary, read=ReadSEGINFOFlags>;	ushort minoff <format=hex>;} SEGINFO;
+
+string ReadSEGINFOFlags(ushort flags) {
+    if (flags == 0x1) {
+        return "CODE";
+    } else if (flags == 0x2) {
+        return "OVERLAY";
+    } else if (flags == 0x4) {
+        return "DATA"; 
+    }
+
+    return "Unknown";
+}
 
 short PeekShort() {
     local uint64 pos = FTell();    
@@ -162,6 +174,7 @@ string readName(unsigned short nameIndex) {
     FSeek(originalLocation);
     return name;
 }
+
 
 string readSymbol(SYMBOL_RECORD &sym) {
     return readName(sym.symbol_name);
