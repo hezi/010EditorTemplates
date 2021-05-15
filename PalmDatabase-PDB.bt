@@ -1,0 +1,42 @@
+//------------------------------------------------
+//--- 010 Editor v10.0.2 Binary Template
+//
+//      File: 
+//   Authors: 
+//   Version: 
+//   Purpose: 
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+typedef struct {   // bmfh
+    CHAR    name[32];
+    WORD    attrs;
+    WORD    version;
+    DWORD   creation_date;
+    DWORD   modification_date;
+    DWORD   backup_date;
+    DWORD   modification_num;
+    DWORD   app_info;
+    DWORD   sort_info;
+    CHAR    type[4];
+    CHAR    creator[4];
+    DWORD   unique_id_seed;
+    DWORD   next_record_list;
+    WORD    num_records;
+} PDBHEADER;
+
+typedef struct {
+    DWORD   offset;
+    byte    attrs;
+    byte    bla[3];
+} PDBRECORDHEADER;
+
+PDBHEADER header;
+
+local int i;
+for(i = 0; i < header.num_records; i++) {
+PDBRECORDHEADER h;
+}

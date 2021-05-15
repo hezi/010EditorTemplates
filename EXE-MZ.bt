@@ -28,6 +28,71 @@ typedef struct
     LONG   AddressOfNewExeHeader    <comment="NtHeader Offset",format=hex>;
 } IMAGE_DOS_HEADER;
 
+ 
+typedef struct
+{
+    WORD sig;                 //"NE"
+    BYTE MajLinkerVersion;    //The major linker version
+    BYTE MinLinkerVersion;    //The minor linker version
+    WORD EntryTableOffset;   //Offset of entry table, see below
+    WORD EntryTableLength;   //Length of entry table in bytes
+    LONG FileLoadCRC;        //32-bit CRC of entire contents of file
+    BYTE ProgFlags;           //Program flags, bitmapped
+    BYTE ApplFlags;           //Application flags, bitmapped
+    WORD AutoDataSegIndex;   //The automatic data segment index
+    WORD InitHeapSize;       //The intial local heap size
+    WORD InitStackSize;      //The inital stack size
+    LONG EntryPoint;         //CS:IP entry point, CS is index into segment table
+    LONG InitStack;          //SS:SP inital stack pointer, SS is index into segment table
+    WORD SegCount;           //Number of segments in segment table
+    WORD ModRefs;            //Number of module references (DLLs)
+    WORD NoResNamesTabSiz;   //Size of non-resident names table, in bytes (Please clarify non-resident names table)
+    WORD SegTableOffset;     //Offset of Segment table
+    WORD ResTableOffset;     //Offset of resources table
+    WORD ResidNamTable;      //Offset of resident names table
+    WORD ModRefTable;        //Offset of module reference table
+    WORD ImportNameTable;    //Offset of imported names table (array of counted strings, terminated with string of length 00h)
+    LONG OffStartNonResTab;  //Offset from start of file to non-resident names table
+    WORD MovEntryCount;      //Count of moveable entry point listed in entry table
+    WORD FileAlnSzShftCnt;   //File alligbment size shift count (0=9(default 512 byte pages))
+    WORD nResTabEntries;     //Number of resource table entries
+    BYTE targOS;              //Target OS
+    BYTE OS2EXEFlags;         //Other OS/2 flags
+    WORD retThunkOffset;     //Offset to return thunks or start of gangload area - what is gangload?
+    WORD segrefthunksoff;    //Offset to segment reference thunks or size of gangload area
+    WORD mincodeswap;        //Minimum code swap area size
+    BYTE expctwinver[2];      //Expected windows version (minor first)
+} NE_header;
+
+typedef struct 
+{
+    WORD offset;
+    WORD length;
+    WORD flags <read=readSegmentFlags>;
+    WORD minalloc;    
+} NE_segment_entry;
+
+typedef struct
+{
+    BYTE RelocAddrsType;
+    BYTE RelocType;
+    WORD offset <format=hex>;
+    WORD targetSeg <format=hex>;
+    WORD targetOff <format=hex>;
+} reloc_info;
+
+local short SEG_FLAG_DATA       = (short) 0x0001;
+local short SEG_FLAG_ALLOC      = (short) 0x0002;
+local short SEG_FLAG_LOADED     = (short) 0x0004;
+local short SEG_FLAG_MOVEABLE   = (short) 0x0010;
+local short SEG_FLAG_PURE       = (short) 0x0020;
+local short SEG_FLAG_PRELOAD    = (short) 0x0040;
+local short SEG_FLAG_EXE_ONLY   = (short) 0x0080;
+local short SEG_FLAG_READ_ONLY  = (short) 0x0080;
+local short SEG_FLAG_RELOC_INFO = (short) 0x0100;
+local short SEG_FLAG_DISCARD    = (short) 0x1000;
+local short SEG_FLAG_32BIT      = (short) 0x2000;
+
 typedef struct
 {
  WORD	magic_number <comment="DEBUG_INFO__SIGNATURE = 0x52FB", format=hex>;
@@ -118,6 +183,14 @@ int PeekInt() {
     return v;
 }
 
+typedef struct {
+    char length;    
+    char str[length];
+} lstring <read=readlString>;
+
+
+//////////////////////////////////////////////////////////////////////////////
+
 LittleEndian();
 Printf("EXE.bt Begin\n");
 
@@ -126,6 +199,48 @@ if (DosHeader.MZSignature != 0x5A4D)
 {
     Printf("Invalid DOS Magic.\n");
     return 1;
+}
+
+local int i;
+
+FSeek(DosHeader.AddressOfNewExeHeader);
+if(PeekShort() == 0x454E) {
+    NE_header NeHeader <bgcolor=cLtGreen>;
+    local WORD seg_count = NeHeader.SegCount;
+    if(seg_count > 0) {
+        // Module reference
+        FSeek(DosHeader.AddressOfNewExeHeader + NeHeader.ModRefTable);
+        WORD modRefTable[NeHeader.ModRefs];
+        local short len = 0;
+        for(i = 0; i < NeHeader.ModRefs; i++) {
+            FSeek(DosHeader.AddressOfNewExeHeader + NeHeader.ModRefTable + NeHeader.ModRefs * 2 + modRefTable[i]);                
+
+            lstring ModuleRef;
+        }
+
+        // Segments and Reloc
+        FSeek(DosHeader.AddressOfNewExeHeader + NeHeader.SegTableOffset);
+        local int offsetAlign = 0;
+        local int relocPos;
+        local short nReloc;
+        local int tmp;
+        for(i = 0; i < seg_count; i++) {
+            NE_segment_entry segment <bgcolor=cLtRed>;
+            if((segment.flags & SEG_FLAG_RELOC_INFO) == 0) {
+                i++;
+                continue;
+            }
+
+            offsetAlign = segment.offset * (0x01 << NeHeader.FileAlnSzShftCnt);
+            relocPos = offsetAlign + segment.length;
+            tmp = FTell();
+            FSeek(offsetAlign + segment.length);
+            nReloc = ReadShort();
+            FSkip(2);     
+            reloc_info reloc[nReloc] <bgcolor=cLtYellow>;
+            FSeek(tmp);
+        }
+    }
 }
 
 local DWORD extra_data_start = DosHeader.FileSizeInPages * 512;
@@ -182,4 +297,27 @@ string readSymbol(SYMBOL_RECORD &sym) {
 
 string readModule(MODULE_HEADER &module) {
     return readName(module.module_name);
+}
+
+string readlString(lstring &str) {
+    return str.str;
+}
+
+string readSegmentFlags(WORD &flagword) {
+    string res = "";
+
+    if ((flagword & SEG_FLAG_DATA      ) == 0)  res += "CODE, ";
+    if ((flagword & SEG_FLAG_DATA      ) != 0)  res += "DATA, ";
+    if ((flagword & SEG_FLAG_ALLOC     ) != 0)  res += "ALLOC, ";  
+    if ((flagword & SEG_FLAG_LOADED    ) != 0)  res += "LOADED, ";
+    if ((flagword & SEG_FLAG_MOVEABLE  ) != 0)  res += "MOVEABLE, ";
+    if ((flagword & SEG_FLAG_PURE      ) != 0)  res += "PURE, ";
+    if ((flagword & SEG_FLAG_PRELOAD   ) != 0)  res += "PRELOAD, ";
+    if ((flagword & SEG_FLAG_EXE_ONLY  ) != 0)  res += "EXE_ONLY, ";
+    if ((flagword & SEG_FLAG_READ_ONLY ) != 0)  res += "READ_ONLY, ";
+    if ((flagword & SEG_FLAG_RELOC_INFO) != 0)  res += "RELOC_INFO, ";
+    if ((flagword & SEG_FLAG_DISCARD   ) != 0)  res += "DISCARD, ";
+    if ((flagword & SEG_FLAG_32BIT     ) != 0)  res += "32BIT, ";
+
+    return res;
 }
